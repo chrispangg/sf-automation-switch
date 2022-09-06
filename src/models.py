@@ -14,7 +14,6 @@ class Version:
         self.attributes = attributes
         self.version_number = version_number
     
-
 class Flow:
     attributes: Attributes
     id: str
@@ -28,4 +27,3 @@ class Flow:
         self.active_version = active_version
         self.latest_version = latest_version
         self.developer_name = developer_name
-

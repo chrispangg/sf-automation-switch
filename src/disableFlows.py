@@ -2,7 +2,7 @@ import os
 from dotenv import load_dotenv
 import json
 from simple_salesforce import Salesforce
-from models import Flow, Attributes, Version
+import math
 
 #login details
 load_dotenv()
@@ -13,62 +13,45 @@ security_token = os.getenv('SECURITY_TOKEN')
 #authenticate
 sf = Salesforce(username=username, password=password, security_token=security_token, domain='test')
 
-#get original flow states
+# Get Active Flow's Flow Definition
 result = sf.toolingexecute('query/?q=Select+Id,ActiveVersion.VersionNumber,LatestVersion.VersionNumber,DeveloperName+From+FlowDefinition+Where+ActiveVersion.VersionNumber!=null')
+
 jsonify = json.dumps(result, indent=2)
-with open('originalFlowState.json', 'w') as outfile: 
+with open('newFlowState.json', 'w') as outfile: 
     outfile.write(jsonify)
 
-flows = []
-for comp in result['records']:
-    flowAttributes = Attributes(
-        comp['attributes']['type'], 
-        comp['attributes']['url'])
+print("Total flows: " + str(len(result['records'])) + " Total Batches: " + str(math.ceil(len(result['records'])/25)))
 
-    flowActiveVersionAttributes = Attributes(
-        comp['ActiveVersion']['attributes']['type'], 
-        comp['ActiveVersion']['attributes']['url'])
-
-    flowActiveVersion = Version(
-        flowActiveVersionAttributes,
-        comp['ActiveVersion']['VersionNumber'])
-
-    flowLatestVersionAttributes = Attributes(
-        comp['LatestVersion']['attributes']['type'], 
-        comp['LatestVersion']['attributes']['url'])
-
-    flowLatestVersion = Version(
-        flowLatestVersionAttributes,
-        comp['LatestVersion']['VersionNumber'])
-
-    flow = Flow(
-        flowAttributes,
-        comp['Id'],
-        0,
-        flowLatestVersion,
-        comp['DeveloperName']
-    )
-    flows.append(flow)
-
+res = []
 payload = {
-        'Metadata': {
-            'activeVersionNumber': 0
+    "allOrNone":False,
+    "compositeRequest": []
+}
+batchCounter = 0
+for i, flow in enumerate(result['records']):
+    body = {
+        "method":"PATCH",
+        "body":{
+            "Metadata":{
+                "activeVersionNumber": 0
+                },
+            },
+            "url": flow["attributes"]["url"],
+            "referenceId": flow["DeveloperName"]
         }
-    }
-for flow in flows:
-    try: 
-        print("Turning off " + flow.developer_name + " " + flow.id)
-        result = sf.toolingexecute('sobjects/FlowDefinition/' + flow.id, method = "PATCH", data=payload)
-    except Exception as e: 
-        print(e)
-    print("successful")
+    payload['compositeRequest'].append(body)
 
-print("completed")
-        
+    if len(payload['compositeRequest']) == 25 or i == len(result['records']) - 1:
+        callback = sf.toolingexecute('composite/', data=payload, method="POST")
+        print("batch " + batchCounter + " completed")
+        batchCounter += 1
+        res.append(callback)
+        payload = {
+             "allOrNone":True,
+             "compositeRequest": []
+        }
 
+print("Job Completed!")
 
-
-
-
-# for comp in result['records']:
-
+with open('result.json', 'w') as outfile: 
+    outfile.write(json.dumps(res, indent=2))
