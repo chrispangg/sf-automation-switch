@@ -18,31 +18,23 @@ sfapi = os.getenv("SALESFORCE_API_VERSION")
 #authenticate
 sf = Salesforce(username=username, password=password, security_token=security_token, domain='test')
 
-#get names of active triggers
-# result = sf.toolingexecute('query/?q=SELECT+Id,NamespacePrefix,Name,Status,TableEnumOrId+From+ApexTrigger+WHERE+NamespacePrefix=+null+and+Status="Active"+Order+by+Name')
-# jsonify = json.dumps(result, indent=2)
-# with open('originalTriggerState.json', 'w') as outfile: 
-#     outfile.write(jsonify)
+#get names of active triggers and save them to a json file
+result = sf.toolingexecute('query/?q=SELECT+Id,NamespacePrefix,Name,Status,TableEnumOrId+From+ApexTrigger+WHERE+NamespacePrefix=+null+and+Status=\'Active\'+Order+by+Name')
+jsonify = json.dumps(result, indent=2)
+with open('originalTriggerState.json', 'w') as outfile: 
+    outfile.write(jsonify)
 
-#create empty org and fetch triggers
+#create empty org and fetch all triggers
 subprocess.check_call("OrgInit.sh '%s'" % org_alias, shell=True)
-
-#get names for Apex
-with open('output/sf-automation-switch-org/output.json') as json_file:
-    data = json.load(json_file)
-    result = data['result']['response']['fileProperties']
     
-for trigger in result:
-    #edge case: skip last line
-    if trigger['fullName'] == "unpackaged/package.xml": continue
+for trigger in result['records']:
 
     #make a copy of the original trigger-meta.xml files    
     original_trigger_xml_path = 'output/sf-automation-switch-org/force-app/main/default/triggers/' + trigger['fullName'] + '.trigger-meta.xml'
     copied_trigger_xml_path = 'output/copiedTriggers/' + trigger['fullName'] + '.trigger-meta.xml'
-    trigger_xml = open(copied_trigger_xml_path, 'w')
     shutil.copyfile(original_trigger_xml_path, copied_trigger_xml_path)
 
-    # modify the meta.xml status to 'Inactive'
+    #modify the meta.xml status to 'Inactive'
     for line in fileinput.FileInput(original_trigger_xml_path, inplace=1):
         line = line.replace("    <status>Active</status>", "    <status>Inactive</status>")
         sys.stdout.write(line)
@@ -58,6 +50,6 @@ package_xml.close()
 
 #deploy source to org using the package.xml
 deploy = subprocess.check_output("DeployToOrg.sh '%s'" % org_alias, shell=True)
-print(deploy)
+print("script completed")
 
 

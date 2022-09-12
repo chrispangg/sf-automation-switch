@@ -3,7 +3,6 @@ from dotenv import load_dotenv
 import json
 from simple_salesforce import Salesforce
 import math
-import 
 
 #login details
 load_dotenv()
