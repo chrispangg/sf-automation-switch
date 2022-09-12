@@ -13,7 +13,6 @@ security_token = os.getenv('SECURITY_TOKEN')
 #authenticate
 sf = Salesforce(username=username, password=password, security_token=security_token, domain='test')
 
-# Get Active Flow's Flow Definition
 result = sf.toolingexecute('query/?q=Select+Id,ActiveVersion.VersionNumber,LatestVersion.VersionNumber,DeveloperName+From+FlowDefinition+Where+ActiveVersion.VersionNumber!=null')
 
 jsonify = json.dumps(result, indent=2)
@@ -27,7 +26,7 @@ payload = {
     "allOrNone":False,
     "compositeRequest": []
 }
-batchCounter = 0
+batchCounter = 1
 for i, flow in enumerate(result['records']):
     body = {
         "method":"PATCH",
@@ -43,7 +42,7 @@ for i, flow in enumerate(result['records']):
 
     if len(payload['compositeRequest']) == 25 or i == len(result['records']) - 1:
         callback = sf.toolingexecute('composite/', data=payload, method="POST")
-        print("batch " + batchCounter + " completed")
+        print("batch " + str(batchCounter) + " completed")
         batchCounter += 1
         res.append(callback)
         payload = {

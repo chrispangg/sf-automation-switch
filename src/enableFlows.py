@@ -26,7 +26,7 @@ payload = {
     "compositeRequest": []
 }
 
-batchCounter = 0
+batchCounter = 1
 for i, flow in enumerate(data['records']):
     body = {
         "method":"PATCH",
@@ -42,7 +42,7 @@ for i, flow in enumerate(data['records']):
 
     if len(payload['compositeRequest']) == 25 or i == len(data['records']) - 1:
         callback = sf.toolingexecute('composite/', data=payload, method="POST")
-        print("batch " + batchCounter + " completed")
+        print("batch " + str(batchCounter) + " completed")
         batchCounter += 1
         res.append(callback)
         payload = {
@@ -54,44 +54,4 @@ print("Job Completed!")
 
 with open('result.json', 'w') as outfile: 
     outfile.write(json.dumps(res, indent=2))
-
-# try:
-#     print("Turnning on " + flow['DeveloperName'] + " " + flow['Id'])
-    # result = sf.toolingexecute('sobjects/FlowDefinition/' + flow['Id'], method = "PATCH", data=payload)
-# except Exception as e: 
-#     print(e)
-# print("successful")
-# print('completed')
-
-
-# flows = []
-# for comp in data['records']:
-#     flowAttributes = Attributes(
-#         comp['attributes']['type'], 
-#         comp['attributes']['url'])
-
-#     flowActiveVersionAttributes = Attributes(
-#         comp['ActiveVersion']['attributes']['type'], 
-#         comp['ActiveVersion']['attributes']['url'])
-
-#     flowActiveVersion = Version(
-#         flowActiveVersionAttributes,
-#         comp['ActiveVersion']['VersionNumber'])
-
-#     flowLatestVersionAttributes = Attributes(
-#         comp['LatestVersion']['attributes']['type'], 
-#         comp['LatestVersion']['attributes']['url'])
-
-#     flowLatestVersion = Version(
-#         flowLatestVersionAttributes,
-#         comp['LatestVersion']['VersionNumber'])
-
-#     flow = Flow(
-#         flowAttributes,
-#         comp['Id'],
-#         flowActiveVersion,
-#         flowLatestVersion,
-#         comp['DeveloperName']
-#     )
-#     flows.append(flow)
 

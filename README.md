@@ -1,4 +1,9 @@
-# How to Setup
+
+#Prerequisit:
+1. Using VSCode
+2. Have sfdx installed
+4. Already authenticated to the target org - see orgs under sfdx force:org:list
+
 
 # Dependencies
 1. Setup venv
