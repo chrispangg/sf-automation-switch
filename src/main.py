@@ -6,6 +6,7 @@ import math
 import shutil
 from dotenv import load_dotenv
 import json
+from model import Metadata, Trigger, Flow, ValidationRule
 from simple_salesforce import Salesforce
 
 # Operation Toggles
