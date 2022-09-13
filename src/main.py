@@ -10,7 +10,7 @@ from simple_salesforce import Salesforce
 
 #Operation Toggles
 disableAutomation = False
-enableAutomation = True
+enableAutomation = False 
 
 #env variables
 load_dotenv()
@@ -135,7 +135,7 @@ if disableAutomation:
     print("Deploying Triggers")
     #deploy source to org using the package.xml for triggers
     deploy = subprocess.check_output("DeployToOrg.sh '%s'" % org_alias, shell=True, stderr=subprocess.PIPE, text=True)
-    print("deployed Triggers")
+    print("Deployed Triggers")
 
     #perform callouts for validation rules and flows
     print("Deploying Flows and Validation Rules")
@@ -144,7 +144,7 @@ if disableAutomation:
         callback = sf.toolingexecute('composite/', data=load, method="POST")
         print("batch " + str(i+1) + " out of " + str(len(payloads)) + " completed")
         res.append(callback)
-    print("deployed Flows and Validation Rules")
+    print("Deployed Flows and Validation Rules")
     print("Job completed for deactivating automation. Check result in result.json")
 
     with open('result.json', 'w') as outfile: 
@@ -237,7 +237,7 @@ if enableAutomation:
     print("Deploying Triggers")
     #deploy source to org using the package.xml
     deploy = subprocess.check_output("DeployToOrg.sh '%s'" % org_alias, shell=True)
-    print("deployed Triggers")
+    print("Deployed Triggers")
 
     #perform callouts for validation rules and flows
     print("Deploying Flows and Validation Rules")
