@@ -25,8 +25,8 @@ with open('originalTriggerState.json', 'w') as outfile:
     outfile.write(jsonify)
 
 #create empty org and fetch all triggers
-subprocess.check_call("OrgInit.sh '%s'" % org_alias, shell=True)
-    
+orgInit = subprocess.check_call("OrgInit.sh {alias} {md_flag} {metadata}".format(alias=org_alias, md_flag="m", metadata='ApexTrigger'), stderr=subprocess.PIPE, text=True, shell=True)
+
 for trigger in result['records']:
 
     #make a copy of the original trigger-meta.xml files    
@@ -49,7 +49,7 @@ package_xml.write('</Package>')
 package_xml.close()
 
 #deploy source to org using the package.xml
-deploy = subprocess.check_output("DeployToOrg.sh '%s'" % org_alias, shell=True)
-print("script completed")
+deploy = subprocess.check_output("DeployToOrg.sh '%s'" % org_alias, shell=True, stderr=subprocess.PIPE, text=True)
+print(deploy.stderr)
 
 

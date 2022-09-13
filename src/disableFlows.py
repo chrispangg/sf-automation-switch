@@ -46,7 +46,7 @@ for i, flow in enumerate(result['records']):
         batchCounter += 1
         res.append(callback)
         payload = {
-             "allOrNone":True,
+             "allOrNone":False,
              "compositeRequest": []
         }
 
