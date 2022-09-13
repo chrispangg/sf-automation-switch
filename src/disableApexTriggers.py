@@ -25,13 +25,15 @@ with open('originalTriggerState.json', 'w') as outfile:
     outfile.write(jsonify)
 
 #create empty org and fetch all triggers
-orgInit = subprocess.check_call("OrgInit.sh {alias} {md_flag} {metadata}".format(alias=org_alias, md_flag="m", metadata='ApexTrigger'), stderr=subprocess.PIPE, text=True, shell=True)
+# orgInit = subprocess.check_call("OrgInit.sh", stderr=subprocess.PIPE, text=True, shell=True)
+
+fetch = subprocess.check_call("FetchMetadata.sh {alias} {md_flag} {metadata}".format(alias=org_alias, md_flag="m", metadata='ApexTrigger'), stderr=subprocess.PIPE, text=True, shell=True)
 
 for trigger in result['records']:
 
     #make a copy of the original trigger-meta.xml files    
-    original_trigger_xml_path = 'output/sf-automation-switch-org/force-app/main/default/triggers/' + trigger['fullName'] + '.trigger-meta.xml'
-    copied_trigger_xml_path = 'output/copiedTriggers/' + trigger['fullName'] + '.trigger-meta.xml'
+    original_trigger_xml_path = 'output/sf-automation-switch-org/force-app/main/default/triggers/' + trigger['Name'] + '.trigger-meta.xml'
+    copied_trigger_xml_path = 'output/copiedTriggers/' + trigger['Name'] + '.trigger-meta.xml'
     shutil.copyfile(original_trigger_xml_path, copied_trigger_xml_path)
 
     #modify the meta.xml status to 'Inactive'
@@ -50,6 +52,5 @@ package_xml.close()
 
 #deploy source to org using the package.xml
 deploy = subprocess.check_output("DeployToOrg.sh '%s'" % org_alias, shell=True, stderr=subprocess.PIPE, text=True)
-print(deploy.stderr)
 
 

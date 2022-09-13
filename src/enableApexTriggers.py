@@ -1,7 +1,5 @@
 import os
 import subprocess
-import fileinput
-import sys
 import shutil
 from dotenv import load_dotenv
 import json
@@ -15,19 +13,16 @@ sfapi = os.getenv("SALESFORCE_API_VERSION")
 #create empty org and fetch triggers
 # subprocess.check_call("OrgInit.sh '%s'" % org_alias, shell=True)
 
-# #get names for Apex
-with open('output/sf-automation-switch-org/output.json') as json_file:
-    data = json.load(json_file)
-    result = data['result']['response']['fileProperties']
+#get names for Apex
+with open('originalTriggerState.json', 'r') as json_file: 
+    result = json.load(json_file)
     
-for trigger in result:
-    #edge case: skip last line
-    if trigger['fullName'] == "unpackaged/package.xml": continue
+for trigger in result['records']:
 
     #replace triggers with the originals
-    original_trigger_xml_path = 'output/sf-automation-switch-org/force-app/main/default/triggers/' + trigger['fullName'] + '.trigger-meta.xml'
-    copied_trigger_xml_path = 'output/copiedTriggers/' + trigger['fullName'] + '.trigger-meta.xml'
-    shutil.copyfile(copied_trigger_xml_path, original_trigger_xml_path)
+    original_trigger_xml_path = 'output/sf-automation-switch-org/force-app/main/default/triggers/' + trigger['Name'] + '.trigger-meta.xml'
+    copied_trigger_xml_path = 'output/copiedTriggers/' + trigger['Name'] + '.trigger-meta.xml'
+    shutil.move(copied_trigger_xml_path, original_trigger_xml_path)
 
 #generate package.xml
 package_xml = open('output/sf-automation-switch-org/manifest/package.xml','w+')
