@@ -22,7 +22,7 @@ validationRules = []
 for rule in result['records']:
     print("fetching metadata for validation rule: " + rule['ValidationName'])
 
-    result = sf.toolingexecute('query/?q=SELECT+Id,NamespacePrefix,ValidationName,EntityDefinition.QualifiedApiName,Metadata+from+ValidationRule+WHERE+NamespacePrefix=null+and+Active=True+and+Id=\'{id}\''.format(id=rule['Id']))
+    result = sf.toolingexecute('query/?q=SELECT+Id,NamespacePrefix,ValidationName,EntityDefinition.QualifiedApiName,Metadata+from+ValidationRule+WHERE+NamespacePrefix=null+and+Id=\'{id}\''.format(id=rule['Id']))
 
     validationRules.append(result['records'][0])
 
