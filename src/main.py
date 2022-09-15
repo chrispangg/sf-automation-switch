@@ -15,8 +15,8 @@ from model import MetadataType
 from schema import TriggerSchema, FlowDefinitionSchema, ValidationRuleSchema
 
 # Operation Toggles
-disableAutomation = False
-enableAutomation = True
+disable_automation = False
+enable_automation = False
 
 # env variables
 load_dotenv()
@@ -34,7 +34,7 @@ orgInit = subprocess.check_call(
     "OrgInit.sh '%s'" % org_alias, stderr=subprocess.PIPE, text=True, shell=True
 )
 
-if disableAutomation:
+if disable_automation = :
     """Disable Apex Triggers"""
     # get names of active triggers and save them as object and export as json file
     result = sf.fetch_active_apex_triggers_json()
@@ -124,7 +124,7 @@ if disableAutomation:
     payloads = flow_payloads + payloads_validation_rules
     sf.deploy_payloads(payloads)
 
-if enableAutomation:
+if enable_automation:
     """Enable Triggers"""
     # get names for Apex
     trigger_arr = []
