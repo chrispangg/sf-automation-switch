@@ -13,10 +13,15 @@ from xml_util import XmlUtil
 from payload_builder import PayloadBuilder
 from model import MetadataType
 from schema import TriggerSchema, FlowDefinitionSchema, ValidationRuleSchema
+from clean_up import CleanUpUtil
 
 # Operation Toggles
 disable_automation = False
-enable_automation = False
+enable_automation = True
+
+if not disable_automation and not enable_automation:
+    print("No operations are toggled")
+    sys.exit()
 
 # env variables
 load_dotenv()
@@ -29,10 +34,15 @@ sfapi = os.getenv("SALESFORCE_API_VERSION")
 # authenticate
 sf = CalloutController(username, password, security_token, org_alias)
 
-# Setup Shell Org
-orgInit = subprocess.check_call(
-    "OrgInit.sh '%s'" % org_alias, stderr=subprocess.PIPE, text=True, shell=True
-)
+# Setup Shell Org if not exists
+if not os.path.exists("output/sf-automation-switch-org"):
+    orgInit = subprocess.check_call(
+        "scripts\OrgInit.sh '%s'" % org_alias, stderr=subprocess.PIPE, text=True, shell=True
+    )
+else:
+    print("org already exist, no org setup required")
+
+
 
 if disable_automation:
     """Disable Apex Triggers"""
@@ -45,7 +55,7 @@ if disable_automation:
 
     # fetch triggers in source files
     fetch = subprocess.check_call(
-        "FetchMetadata.sh {alias} {md_flag} {metadata}".format(
+        "scripts\FetchMetadata.sh {alias} {md_flag} {metadata}".format(
             alias=org_alias, md_flag="m", metadata="ApexTrigger"
         ),
         stderr=subprocess.PIPE,
@@ -118,7 +128,7 @@ if disable_automation:
     print("Deployment starts...")
     print("Deploying Triggers")
     # deploy source to org using the package.xml for triggers
-    subprocess.check_output("DeployToOrg.sh '%s'" % org_alias, shell=True)
+    subprocess.check_output("scripts\DeployToOrg.sh '%s'" % org_alias, shell=True)
     print("Deployed Triggers")
     # deploy payloads
     payloads = flow_payloads + payloads_validation_rules
@@ -184,12 +194,21 @@ if enable_automation:
     payloads_validation_rules = payload_builder.composite_payloads(
         validation_rule_arr, MetadataType.VALIDATIONRULE, False
     )
-
+    
+    
     print("Deployment starts...")
     print("Deploying Triggers")
     # deploy source to org using the package.xml for triggers
-    subprocess.check_output("DeployToOrg.sh '%s'" % org_alias, shell=True)
+    subprocess.check_output("scripts\DeployToOrg.sh '%s'" % org_alias, shell=True)
     print("Deployed Triggers")
     # deploy payloads
     payloads = flow_payloads + payloads_validation_rules
+    print("Deploying Flows and Validation Rules")
     sf.deploy_payloads(payloads)
+    print("Deployed Flows and Validation Rules")
+    print("Job completed for deactivating automation. Check result in result.json")
+    
+    print("Cleanup begins...")
+    delete = CleanUpUtil().delete("output")
+    delete = CleanUpUtil().delete("result.json")
+    print("Cleanup completed")

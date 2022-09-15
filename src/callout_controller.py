@@ -56,14 +56,12 @@ class CalloutController:
 
     def deploy_payloads(self, payloads):
         # perform callouts for validation rules and flows
-        print("Deploying Flows and Validation Rules")
+        
         res = []
         for i, load in enumerate(payloads):
             callback = self.sf.toolingexecute("composite/", data=load, method="POST")
             print("batch " + str(i + 1) + " out of " + str(len(payloads)) + " completed")
             res.append(callback)
-        print("Deployed Flows and Validation Rules")
-        print("Job completed for deactivating automation. Check result in result.json")
 
         with open("result.json", "w") as outfile:
             outfile.write(json.dumps(res, indent=2))
