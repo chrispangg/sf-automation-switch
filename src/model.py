@@ -1,4 +1,5 @@
 from enum import Enum
+import json
 
 
 class MetadataType(Enum):
@@ -26,11 +27,11 @@ class Trigger(Metadata):
     object: str
     type: MetadataType
 
-    def __init__(self, id, name, url, status, object):
-        super().__init__(self, id, name, url)
+    def __init__(self, id, name, url, status, object, type=MetadataType.TRIGGER):
+        super().__init__(id, name, url)
         self.status = status
         self.object = object
-        self.type = Metadata.TRIGGER
+        self.type = type
 
     def __str__(self):
         return "id: {}, name: {}, status: {}, object: {}".format(
@@ -38,14 +39,14 @@ class Trigger(Metadata):
         )
 
 
-class Flow(Metadata):
+class FlowDefinition(Metadata):
     active_version_num: int
     type: MetadataType
 
-    def __init__(self, id, name, url, active_version_num):
-        super().__init__(self, id, name, url)
+    def __init__(self, id, name, url, active_version_num, type=MetadataType.FLOW):
+        super().__init__(id, name, url)
         self.active_version_num = active_version_num
-        self.type = Metadata.FLOW
+        self.type = type
 
     def __str__(self):
         return "id: {}, name: {}, active_version_num: {}".format(
@@ -59,6 +60,8 @@ class ValidationRule(Metadata):
     errorDisplayField: str
     errorMessage: str
     active: bool
+    object: str
+    type: MetadataType
 
     def __init__(
         self,
@@ -70,13 +73,17 @@ class ValidationRule(Metadata):
         errorDisplayField,
         errorMessage,
         active,
+        object,
+        type=MetadataType.VALIDATIONRULE,
     ):
-        super().__init__(self, id, name, url)
+        super().__init__(id, name, url)
         self.description = description
         self.errorConditionFormula = errorConditionFormula
         self.errorDisplayField = errorDisplayField
         self.errorMessage = errorMessage
         self.active = active
+        self.object = object
+        self.type = type
 
     def __str__(self):
         return "id: {}, name: {}, description: {}, active: {}".format(

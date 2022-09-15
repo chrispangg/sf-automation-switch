@@ -2,3 +2,5 @@
 .env
 *.json
 /output
+/z_backup
+src/__pycache__/*

@@ -6,8 +6,13 @@ import math
 import shutil
 from dotenv import load_dotenv
 import json
-from model import Metadata, Trigger, Flow, ValidationRule
-from simple_salesforce import Salesforce
+from model import MetadataType
+from callout_controller import CalloutController
+from json_util import JsonUtil
+from xml_util import XmlUtil
+from payload_builder import PayloadBuilder
+from model import MetadataType
+from schema import TriggerSchema, FlowDefinitionSchema, ValidationRuleSchema
 
 # Operation Toggles
 disableAutomation = False
@@ -22,49 +27,23 @@ org_alias = os.getenv("SFORGALIAS")
 sfapi = os.getenv("SALESFORCE_API_VERSION")
 
 # authenticate
-sf = Salesforce(
-    username=username, password=password, security_token=security_token, domain="test"
-)
+sf = CalloutController(username, password, security_token, org_alias)
 
 # Setup Shell Org
 orgInit = subprocess.check_call(
     "OrgInit.sh '%s'" % org_alias, stderr=subprocess.PIPE, text=True, shell=True
 )
 
-
-def deploy(payloads):
-    print("Deployment starts...")
-    print("Deploying Triggers")
-    # deploy source to org using the package.xml for triggers
-    deploy = subprocess.check_output("DeployToOrg.sh '%s'" % org_alias, shell=True)
-    print("Deployed Triggers")
-
-    # perform callouts for validation rules and flows
-    print("Deploying Flows and Validation Rules")
-    res = []
-    for i, load in enumerate(payloads):
-        callback = sf.toolingexecute("composite/", data=load, method="POST")
-        print("batch " + str(i + 1) + " out of " + str(len(payloads)) + " completed")
-        res.append(callback)
-    print("Deployed Flows and Validation Rules")
-    print("Job completed for deactivating automation. Check result in result.json")
-
-    with open("result.json", "w") as outfile:
-        outfile.write(json.dumps(res, indent=2))
-
-
 if disableAutomation:
     """Disable Apex Triggers"""
-    # get names of active triggers and save them to a json file
-    result = sf.toolingexecute(
-        "query/?q=SELECT+Id,NamespacePrefix,Name,Status,TableEnumOrId+From+ApexTrigger+WHERE+NamespacePrefix=+null+and+Status='Active'+Order+by+Name"
-    )
-    # result = sf.toolingexecute('query/?q=SELECT+Id,NamespacePrefix,Name,Status,TableEnumOrId+From+ApexTrigger+WHERE+NamespacePrefix=+null+Order+by+Name')
-    jsonify = json.dumps(result, indent=2)
-    with open("OriginalTriggerState.json", "w") as outfile:
-        outfile.write(jsonify)
+    # get names of active triggers and save them as object and export as json file
+    result = sf.fetch_active_apex_triggers_json()
+    json_helper = JsonUtil()
+    trigger_arr = json_helper.json_to_trigger_objects(result)
+    trigger_schema_arr = TriggerSchema().dump(trigger_arr, many=True)
+    json_helper.array_to_json("output/json/OriginalTriggerState.json", trigger_schema_arr)
 
-    # fetch triggers
+    # fetch triggers in source files
     fetch = subprocess.check_call(
         "FetchMetadata.sh {alias} {md_flag} {metadata}".format(
             alias=org_alias, md_flag="m", metadata="ApexTrigger"
@@ -74,16 +53,15 @@ if disableAutomation:
         shell=True,
     )
 
-    for trigger in result["records"]:
-
+    for trigger in trigger_arr:
         # make a copy of the original trigger-meta.xml files
         original_trigger_xml_path = (
             "output/sf-automation-switch-org/force-app/main/default/triggers/"
-            + trigger["Name"]
+            + trigger.name
             + ".trigger-meta.xml"
         )
         copied_trigger_xml_path = (
-            "output/copiedTriggers/" + trigger["Name"] + ".trigger-meta.xml"
+            "output/copiedTriggers/" + trigger.name + ".trigger-meta.xml"
         )
         shutil.copyfile(original_trigger_xml_path, copied_trigger_xml_path)
 
@@ -95,188 +73,123 @@ if disableAutomation:
             sys.stdout.write(line)
 
     # generate package.xml
-    package_xml = open("output/sf-automation-switch-org/manifest/package.xml", "w+")
-    package_xml.write('<?xml version="1.0" encoding="UTF-8"?>\n')
-    package_xml.write('<Package xmlns="http://soap.sforce.com/2006/04/metadata">\n')
-    package_xml.write(
-        "    <types>\n        <members>*</members>\n        <name>ApexTrigger</name>\n    </types>\n"
+    write_apex_package = XmlUtil.generate_trigger_package(
+        "output/sf-automation-switch-org/manifest/package.xml", sfapi
     )
-    package_xml.write("    <version>" + str(sfapi) + "</version>\n")
-    package_xml.write("</Package>")
-    package_xml.close()
 
     """Disable Flows"""
-    result = sf.toolingexecute(
-        "query/?q=Select+Id,ActiveVersion.VersionNumber,LatestVersion.VersionNumber,DeveloperName+From+FlowDefinition+Where+ActiveVersion.VersionNumber!=null"
+    result = sf.fetch_all_flows_json()
+    flow_definition_arr = json_helper.json_to_flow_objects(result)
+    flow_definition_schema_arr = FlowDefinitionSchema().dump(
+        flow_definition_arr, many=True
     )
-    # result = sf.toolingexecute('query/?q=Select+Id,ActiveVersion.VersionNumber,LatestVersion.VersionNumber,DeveloperName+From+FlowDefinition')
-
-    jsonify = json.dumps(result, indent=2)
-    with open("OriginalFlowState.json", "w") as outfile:
-        outfile.write(jsonify)
+    json_helper.array_to_json("output/json/OriginalFlowState.json", flow_definition_schema_arr)
 
     print(
         "Total flows: "
-        + str(len(result["records"]))
+        + str(len(flow_definition_arr))
         + " Total Batches: "
-        + str(math.ceil(len(result["records"]) / 25))
+        + str(math.ceil(len(flow_definition_arr) / 25))
     )
 
     # Create payloads
-    payloads = []  # 25 records per payload
-    payload = {"allOrNone": False, "compositeRequest": []}
-
-    for i, flow in enumerate(result["records"]):
-        body = {
-            "method": "PATCH",
-            "body": {
-                "Metadata": {"activeVersionNumber": 0},
-            },
-            "url": flow["attributes"]["url"],
-            "referenceId": flow["DeveloperName"],
-        }
-        payload["compositeRequest"].append(body)
-
-        if len(payload["compositeRequest"]) == 25 or i == len(result["records"]) - 1:
-            payloads.append(payload.copy())
-            payload["compositeRequest"] = []
+    payload_builder = PayloadBuilder()
+    flow_payloads = payload_builder.composite_payloads(
+        flow_definition_arr, MetadataType.FLOW, True
+    )
 
     """Disable Validation Rules"""
-    # get names of active validation rules and save them to a json file
-    result = sf.toolingexecute(
-        "query/?q=SELECT+Id,Active,NamespacePrefix,ValidationName,EntityDefinitionId, EntityDefinition.QualifiedApiName +from+ValidationRule+WHERE+NamespacePrefix=null+and+Active=True"
-    )
-    # result = sf.toolingexecute('query/?q=SELECT+Id,Active,NamespacePrefix,ValidationName,EntityDefinitionId,EntityDefinition.QualifiedApiName +from+ValidationRule+WHERE+NamespacePrefix=null')
-
-    # get metadata of the validation rules
-    validationRules = []
+    # get active validation rules and save them to a json file
+    result = sf.fetch_all_active_validation_rules_json()
     print("fetching metadata for validation rule...")
-    for rule in result["records"]:
-        result = sf.toolingexecute(
-            "query/?q=SELECT+Id,NamespacePrefix,ValidationName,EntityDefinition.QualifiedApiName,Metadata+from+ValidationRule+WHERE+NamespacePrefix=null+and+Id='{id}'".format(
-                id=rule["Id"]
-            )
-        )
-        validationRules.append(result["records"][0])
+    validation_rule_arr = json_helper.json_to_validation_rule_objects(result, sf)
+    validation_rule_schema_arr = ValidationRuleSchema().dump(
+        validation_rule_arr, many=True
+    )
+    json_helper.array_to_json(
+        "output/json/OriginalValidationRuleState.json", validation_rule_schema_arr
+    )
 
-    jsonify = json.dumps(validationRules, indent=2)
-    with open("OriginalValidationRuleState.json", "w") as outfile:
-        outfile.write(jsonify)
+    #create payload
+    payloads_validation_rules = payload_builder.composite_payloads(
+        validation_rule_arr, MetadataType.VALIDATIONRULE, True
+    )
 
-    for i, rule in enumerate(validationRules):
-        body = {
-            "method": "PATCH",
-            "body": {
-                "Metadata": {
-                    "description": rule["Metadata"]["description"],
-                    "errorConditionFormula": rule["Metadata"]["errorConditionFormula"],
-                    "errorDisplayField": rule["Metadata"]["errorDisplayField"],
-                    "errorMessage": rule["Metadata"]["errorMessage"],
-                    "active": "false",
-                }
-            },
-            "url": rule["attributes"]["url"],
-            "referenceId": rule["ValidationName"]
-            + "_"
-            + rule["EntityDefinition"]["QualifiedApiName"],
-        }
-        payload["compositeRequest"].append(body)
-
-        if len(payload["compositeRequest"]) == 25 or i == len(result["records"]) - 1:
-            payloads.append(payload.copy())
-            payload["compositeRequest"] = []
-
-    deploy(payloads)
+    print("Deployment starts...")
+    print("Deploying Triggers")
+    # deploy source to org using the package.xml for triggers
+    subprocess.check_output("DeployToOrg.sh '%s'" % org_alias, shell=True)
+    print("Deployed Triggers")
+    # deploy payloads
+    payloads = flow_payloads + payloads_validation_rules
+    sf.deploy_payloads(payloads)
 
 if enableAutomation:
     """Enable Triggers"""
     # get names for Apex
-    with open("OriginalTriggerState.json", "r") as json_file:
-        result = json.load(json_file)
-
-    for trigger in result["records"]:
+    trigger_arr = []
+    with open("output/json/OriginalTriggerState.json", "r") as json_file:
+        trigger_json = json.load(json_file)
+        for t in trigger_json:
+            result = TriggerSchema().load(t)
+            trigger_arr.append(result)
+    
+    for trigger in trigger_arr:
         # replace triggers with the originals
         original_trigger_xml_path = (
             "output/sf-automation-switch-org/force-app/main/default/triggers/"
-            + trigger["Name"]
+            + trigger.name
             + ".trigger-meta.xml"
         )
         copied_trigger_xml_path = (
-            "output/copiedTriggers/" + trigger["Name"] + ".trigger-meta.xml"
+            "output/copiedTriggers/" + trigger.name + ".trigger-meta.xml"
         )
         shutil.move(copied_trigger_xml_path, original_trigger_xml_path)
 
     # generate package.xml
-    package_xml = open("output/sf-automation-switch-org/manifest/package.xml", "w+")
-    package_xml.write('<?xml version="1.0" encoding="UTF-8"?>\n')
-    package_xml.write('<Package xmlns="http://soap.sforce.com/2006/04/metadata">\n')
-    package_xml.write(
-        "    <types>\n        <members>*</members>\n        <name>ApexTrigger</name>\n    </types>\n"
+    write_apex_package = XmlUtil.generate_trigger_package(
+        "output/sf-automation-switch-org/manifest/package.xml", sfapi
     )
-    package_xml.write("    <version>" + str(sfapi) + "</version>\n")
-    package_xml.write("</Package>")
-    package_xml.close()
 
     """Enable Flows"""
     # get Flow state to return from OriginalFlowState
-    with open("OriginalFlowState.json") as outfile:
-        data = json.load(outfile)
+    flow_definition_arr = []
+    with open("output/json/OriginalFlowState.json") as outfile:
+        flow_definition_json = json.load(outfile)
+        for f in flow_definition_json:
+            result = FlowDefinitionSchema().load(f)
+            flow_definition_arr.append(result)
 
     print(
         "Total flows: "
-        + str(len(data["records"]))
+        + str(len(flow_definition_arr))
         + " Total Batches: "
-        + str(math.ceil(len(data["records"]) / 25))
+        + str(math.ceil(len(flow_definition_arr) / 25))
     )
 
-    payloads = []  # 25 records per payload
-    payload = {"allOrNone": False, "compositeRequest": []}
-
-    for i, flow in enumerate(data["records"]):
-        body = {
-            "method": "PATCH",
-            "body": {
-                "Metadata": {
-                    "activeVersionNumber": flow["ActiveVersion"]["VersionNumber"]
-                    # "activeVersionNumber": flow["LatestVersion"]["VersionNumber"]
-                },
-            },
-            "url": flow["attributes"]["url"],
-            "referenceId": flow["DeveloperName"],
-        }
-        payload["compositeRequest"].append(body)
-
-        if len(payload["compositeRequest"]) == 25 or i == len(data["records"]) - 1:
-            payloads.append(payload.copy())
-            payload["compositeRequest"] = []
+    payload_builder = PayloadBuilder()
+    flow_payloads = payload_builder.composite_payloads(
+        flow_definition_arr, MetadataType.FLOW, False
+    )
 
     """Enable Validation Rules"""
-    with open("OriginalValidationRuleState.json", "r") as readfile:
-        validationRules = json.load(readfile)
+    validation_rule_arr = []
+    with open("output/json/OriginalValidationRuleState.json", "r") as readfile:
+        validation_rule_json = json.load(readfile)
+        for v in validation_rule_json:
+            result = ValidationRuleSchema().load(v)
+            validation_rule_arr.append(result)
 
-    payload = {"allOrNone": False, "compositeRequest": []}
+    #create payload
+    payloads_validation_rules = payload_builder.composite_payloads(
+        validation_rule_arr, MetadataType.VALIDATIONRULE, False
+    )
 
-    for i, rule in enumerate(validationRules):
-        body = {
-            "method": "PATCH",
-            "body": {
-                "Metadata": {
-                    "description": rule["Metadata"]["description"],
-                    "errorConditionFormula": rule["Metadata"]["errorConditionFormula"],
-                    "errorDisplayField": rule["Metadata"]["errorDisplayField"],
-                    "errorMessage": rule["Metadata"]["errorMessage"],
-                    "active": "true",
-                }
-            },
-            "url": rule["attributes"]["url"],
-            "referenceId": rule["ValidationName"]
-            + "_"
-            + rule["EntityDefinition"]["QualifiedApiName"],
-        }
-        payload["compositeRequest"].append(body)
-
-        if len(payload["compositeRequest"]) == 25 or i == len(validationRules) - 1:
-            payloads.append(payload.copy())
-            payload["compositeRequest"] = []
-
-    deploy(payloads)
+    print("Deployment starts...")
+    print("Deploying Triggers")
+    # deploy source to org using the package.xml for triggers
+    subprocess.check_output("DeployToOrg.sh '%s'" % org_alias, shell=True)
+    print("Deployed Triggers")
+    # deploy payloads
+    payloads = flow_payloads + payloads_validation_rules
+    sf.deploy_payloads(payloads)

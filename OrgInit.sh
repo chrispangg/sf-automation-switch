@@ -6,6 +6,7 @@
 
 echo "creating a new project"
 mkdir -p output/copiedTriggers
+mkdir -p output/json
 cd output
 sfdx force:project:create -n sf-automation-switch-org --manifest
 echo "Done"
