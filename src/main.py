@@ -42,8 +42,6 @@ if not os.path.exists("output/sf-automation-switch-org"):
 else:
     print("org already exist, no org setup required")
 
-
-
 if disable_automation:
     """Disable Apex Triggers"""
     # get names of active triggers and save them as object and export as json file
