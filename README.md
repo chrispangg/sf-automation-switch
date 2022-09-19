@@ -19,7 +19,7 @@ This script helps with disabling and enabling automation (Triggers, Validation R
         SECURITY_TOKEN=0000000000000000000000000
         SFORGALIAS= TestOrg1
         SALESFORCE_API_VERSION=XX.0
-    ```
+        ```
 ### How to Run:
 
 The `disable_automation` and `enable_automation` booleans trigger the logic in the script. If `disable_automation` is true, it will attempt to disable Triggers, Validation Rules and Flows in your org. Similarly, toggling `enable_automation`  to `True` will enable Triggers, Validation Rules and Flows in your org. Nothing happen if both are set to `False`.
