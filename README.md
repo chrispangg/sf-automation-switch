@@ -4,14 +4,8 @@ This script helps with disabling and enabling automation (Triggers, Validation R
 
 ## ****How to Install and run the script****
 
-- Make sure you have the following installed in your local machine:
-    - Salesforce CLI
-    - Python 3.5 or later
-- Install the following packages, global or virtual environment (preferred)
-    - simple_salesforce - https://github.com/simple-salesforce/simple-salesforce
-    - python-dotenv - https://github.com/theskumar/python-dotenv
-    - marshmallow - https://github.com/marshmallow-code/marshmallow
-    - marshmallow_enum - https://github.com/justanr/marshmallow_enum
+- Make sure you have the packages installed in your local machine by running :
+    `pip install -r requirements.txt`
 - Setup `.env` file at the root level. Example:
     
     ```bash
@@ -24,4 +18,4 @@ This script helps with disabling and enabling automation (Triggers, Validation R
     
 ### How to Run:
 
-`disable_automation` and `enable_automation` trigger the logic in the script. If `disable_automation` is true, it will attempt to disable Triggers, Validation Rules and Flows in your org. Similarly toggling `enable_automation`  to `True` will enable Triggers, Validation Rules and Flows in your org. Nothing happen if it’s `False`. 
+The `disable_automation` and `enable_automation` booleans trigger the logic in the script. If `disable_automation` is true, it will attempt to disable Triggers, Validation Rules and Flows in your org. Similarly, toggling `enable_automation`  to `True` will enable Triggers, Validation Rules and Flows in your org. Nothing happen if both are set to `False`.
