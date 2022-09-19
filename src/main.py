@@ -132,7 +132,10 @@ if disable_automation:
     print("Deployed Triggers")
     # deploy payloads
     payloads = flow_payloads + payloads_validation_rules
+    print("Deploying Flows and Validation Rules")
     sf.deploy_payloads(payloads)
+    print("Deployed Flows and Validation Rules")
+    print("Job completed for activating automation. Check result in result.json")
 
 if enable_automation:
     """Enable Triggers"""
