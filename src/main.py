@@ -16,8 +16,8 @@ from schema import TriggerSchema, FlowDefinitionSchema, ValidationRuleSchema
 from clean_up import CleanUpUtil
 
 # Operation Toggles
-disable_automation = False
-enable_automation = True
+disable_automation = True
+enable_automation = False
 
 if not disable_automation and not enable_automation:
     print("No operations are toggled")
@@ -43,7 +43,7 @@ else:
     print("org already exist, no org setup required")
 
 if disable_automation:
-    """Disable Apex Triggers"""
+    """Disable Apex Triggers Setup"""
     # get names of active triggers and save them as object and export as json file
     result = sf.fetch_active_apex_triggers_json()
     json_helper = JsonUtil()
@@ -85,7 +85,7 @@ if disable_automation:
         "output/sf-automation-switch-org/manifest/package.xml", sfapi
     )
 
-    """Disable Flows"""
+    """Disable Flows Setup"""
     result = sf.fetch_all_flows_json()
     flow_definition_arr = json_helper.json_to_flow_objects(result)
     flow_definition_schema_arr = FlowDefinitionSchema().dump(
@@ -100,13 +100,7 @@ if disable_automation:
         + str(math.ceil(len(flow_definition_arr) / 25))
     )
 
-    # Create payloads
-    payload_builder = PayloadBuilder()
-    flow_payloads = payload_builder.composite_payloads(
-        flow_definition_arr, MetadataType.FLOW, True
-    )
-
-    """Disable Validation Rules"""
+    """Disable Validation Rules Setup"""
     # get active validation rules and save them to a json file
     result = sf.fetch_all_active_validation_rules_json()
     print("fetching metadata for validation rule...")
@@ -118,11 +112,16 @@ if disable_automation:
         "output/json/OriginalValidationRuleState.json", validation_rule_schema_arr
     )
 
-    #create payload
+    """Create payload"""
+    payload_builder = PayloadBuilder()
+    flow_payloads = payload_builder.composite_payloads(
+        flow_definition_arr, MetadataType.FLOW, True
+    )
     payloads_validation_rules = payload_builder.composite_payloads(
         validation_rule_arr, MetadataType.VALIDATIONRULE, True
     )
 
+    """Deployment"""
     print("Deployment starts...")
     print("Deploying Triggers")
     # deploy source to org using the package.xml for triggers
@@ -178,10 +177,7 @@ if enable_automation:
         + str(math.ceil(len(flow_definition_arr) / 25))
     )
 
-    payload_builder = PayloadBuilder()
-    flow_payloads = payload_builder.composite_payloads(
-        flow_definition_arr, MetadataType.FLOW, False
-    )
+    
 
     """Enable Validation Rules"""
     validation_rule_arr = []
@@ -191,12 +187,16 @@ if enable_automation:
             result = ValidationRuleSchema().load(v)
             validation_rule_arr.append(result)
 
-    #create payload
+    """create payload"""
+    payload_builder = PayloadBuilder()
+    flow_payloads = payload_builder.composite_payloads(
+        flow_definition_arr, MetadataType.FLOW, False
+    )
     payloads_validation_rules = payload_builder.composite_payloads(
         validation_rule_arr, MetadataType.VALIDATIONRULE, False
     )
     
-    
+    """Deployment"""
     print("Deployment starts...")
     print("Deploying Triggers")
     # deploy source to org using the package.xml for triggers
@@ -211,5 +211,4 @@ if enable_automation:
     
     print("Cleanup begins...")
     delete = CleanUpUtil().delete("output")
-    delete = CleanUpUtil().delete("result.json")
     print("Cleanup completed")
