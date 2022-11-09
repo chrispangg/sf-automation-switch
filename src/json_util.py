@@ -1,5 +1,5 @@
 import json
-from model import Trigger, FlowDefinition, ValidationRule, DuplicateRule
+from model import Trigger, FlowDefinition, ValidationRule, DuplicateRule, WorkflowRule
 
 class CustomEncoder(json.JSONEncoder):
     def default(self, o):
@@ -47,6 +47,23 @@ class JsonUtil:
             )
             flow_definitions.append(flow_definition)
         return flow_definitions
+
+    def json_to_workflow_rule_objects(self, json, sf):
+        workflow_rules = []
+        for rule in json["records"]:
+            #Skip Question related workflow rules as they causes SOQL issues
+            if rule["TableEnumOrId"] == "Question": continue 
+            fetch_res = sf.fetch_single_workflow_rule_with_metadata(rule["Id"])
+            item = fetch_res['records'][0] 
+            workflow = WorkflowRule(
+                id=item["Id"],
+                name=item["Name"],
+                url=item["attributes"]["url"],
+                active=item["Metadata"]["active"],
+                metadata=item["Metadata"],
+            )
+            workflow_rules.append(workflow)
+        return workflow_rules
 
     def json_to_validation_rule_objects(self, json, sf):
         validation_rules = []

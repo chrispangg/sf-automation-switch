@@ -1,5 +1,5 @@
 from model import MetadataType
-
+import json
 
 class PayloadBuilder:
     def __init__(self):
@@ -67,6 +67,25 @@ class PayloadBuilder:
                 },
                 "url": model_obj.url,
                 "referenceId": model_obj.name + "_" + model_obj.object,
+            }
+        elif metadata_type == MetadataType.WORKFLOWRULE and turning_off == True:
+            model_obj.metadata['active'] = False
+            body = {
+                "method": "PATCH",
+                "body": {
+                    "Metadata": model_obj.metadata
+                },
+                "url": model_obj.url,
+                "referenceId": model_obj.id,
+            }
+        elif metadata_type == MetadataType.WORKFLOWRULE and turning_off == False:
+            body = {
+                "method": "PATCH",
+                "body": {
+                    "Metadata": eval(model_obj.metadata)
+                },
+                "url": model_obj.url,
+                "referenceId": model_obj.id,
             }
 
         return body

@@ -1,6 +1,6 @@
 from marshmallow import Schema, fields, post_load
 from marshmallow_enum import EnumField
-from model import MetadataType, Trigger, ValidationRule, FlowDefinition, DuplicateRule
+from model import MetadataType, Trigger, ValidationRule, FlowDefinition, DuplicateRule, WorkflowRule
 
 class TriggerSchema(Schema):
     id = fields.Str()
@@ -36,6 +36,18 @@ class FlowDefinitionSchema(Schema):
     @post_load
     def make_flow_definition(self, data, **kwargs):
         return FlowDefinition(**data)
+
+class WorkflowRuleSchema(Schema):
+    id = fields.Str()
+    name = fields.Str()
+    url = fields.Str()
+    active = fields.Bool()
+    type = EnumField(MetadataType)
+    metadata = fields.Str()
+
+    @post_load
+    def make_workflow_rule(self, data, **kwargs):
+        return WorkflowRule(**data)
 
 class ValidationRuleSchema(Schema):
     id = fields.Str()

@@ -43,6 +43,11 @@ class CalloutController:
         return self.sf.toolingexecute(
             "query/?q=SELECT+Id,NamespacePrefix,ValidationName,EntityDefinition.QualifiedApiName,Metadata+from+ValidationRule+WHERE+NamespacePrefix=null+and+Id='{id}'".format(id=record_id))
 
+    def fetch_all_workflow_rules_json(self):
+        return self.sf.toolingexecute("query/?q=SELECT+Id,Name,TableEnumOrId+FROM+WorkflowRule")
+
+    def fetch_single_workflow_rule_with_metadata(self, record_id):
+        return self.sf.toolingexecute("query/?q=SELECT+Id,+Name,+Metadata+FROM+WorkflowRule+WHERE+Id='{id}'".format(id=record_id))
 
     def tooling_composite(self, payload):
         return self.sf.toolingexecute("composite/", data=payload, method="POST")

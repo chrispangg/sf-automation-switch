@@ -11,7 +11,7 @@ from callout_controller import CalloutController
 from json_util import JsonUtil
 from xml_util import XmlUtil
 from payload_builder import PayloadBuilder
-from schema import TriggerSchema, FlowDefinitionSchema, ValidationRuleSchema, DuplicateRuleSchema
+from schema import TriggerSchema, FlowDefinitionSchema, ValidationRuleSchema, DuplicateRuleSchema, WorkflowRuleSchema
 from clean_up import CleanUpUtil
 
 class Controller:
@@ -59,17 +59,19 @@ class Controller:
         self.disable_duplicate_rules()
         flow_definition_arr = self.disable_flows()
         validation_rule_arr = self.disable_validation_rules()
-        payloads = self.create_payload(flow_definition_arr, validation_rule_arr, True)
+        workflow_rule_arr = self.disable_workflow_rules()
+        payloads = self.create_payload(flow_definition_arr, validation_rule_arr, workflow_rule_arr, True)
         self.deployment(payloads)
     
     def enable_automation(self):
-        self.enable_triggers()
-        self.enable_duplication_rules()
+        # self.enable_triggers()
+        # self.enable_duplication_rules()
         flow_definition_arr = self.enable_flows()
         validation_rule_arr = self.enable_validation_rules()
-        payloads = self.create_payload(flow_definition_arr, validation_rule_arr, False)
+        workflow_rule_arr = self.enable_workflow_rules()
+        payloads = self.create_payload(flow_definition_arr, validation_rule_arr, workflow_rule_arr, False)
         self.deployment(payloads)
-        self.clean_up() #uncomment this line to avoid clean up
+        # self.clean_up() #uncomment this line to avoid clean up
 
     def disable_trigger(self):
         # get names of active triggers and save them as object and export as json file
@@ -169,6 +171,20 @@ class Controller:
         )
         return flow_definition_arr
 
+    def disable_workflow_rules(self):
+        json_helper = JsonUtil()
+        result = self.sf.fetch_all_workflow_rules_json()
+        print("fetching metadata for workflow rule...")
+        workflow_arr = json_helper.json_to_workflow_rule_objects(result, self.sf)
+        workflow_schema_arr = WorkflowRuleSchema().dump(
+            workflow_arr, many=True
+        )
+        json_helper.array_to_json(
+            "output/json/OriginalWorkflowRuleState.json", workflow_schema_arr
+        )
+
+        return workflow_arr
+
     def disable_validation_rules(self):
         json_helper = JsonUtil()
         # get active validation rules and save them to a json file
@@ -255,6 +271,16 @@ class Controller:
         )
         return flow_definition_arr
 
+    def enable_workflow_rules(self):
+        workflows_rules_arr = []
+        with open("output/json/OriginalWorkflowRuleState.json", "r") as readfile:
+            workflow_json = json.load(readfile)
+            for w in workflow_json:
+                result = WorkflowRuleSchema().load(w)
+                workflows_rules_arr.append(result)
+        
+        return workflows_rules_arr
+
     def enable_validation_rules(self):
         validation_rule_arr = []
         with open("output/json/OriginalValidationRuleState.json", "r") as readfile:
@@ -265,7 +291,7 @@ class Controller:
 
         return validation_rule_arr
 
-    def create_payload(self, flow_definition_arr, validation_rule_arr, disabling):
+    def create_payload(self, flow_definition_arr, validation_rule_arr, workflow_rule_arr, disabling):
 
         payload_builder = PayloadBuilder()
         flow_payloads = payload_builder.composite_payloads(
@@ -274,8 +300,11 @@ class Controller:
         payloads_validation_rules = payload_builder.composite_payloads(
             validation_rule_arr, MetadataType.VALIDATIONRULE, disabling
         )
+        payloads_workflow_rules = payload_builder.composite_payloads(
+            workflow_rule_arr, MetadataType.WORKFLOWRULE, disabling
+        )
 
-        return flow_payloads + payloads_validation_rules
+        return flow_payloads + payloads_validation_rules + payloads_workflow_rules
 
     def deployment(self, payloads):
         print("Deployment starts...")
@@ -283,9 +312,9 @@ class Controller:
         # deploy source to org using the package.xml for triggers
         subprocess.run("scripts/DeployToOrg.sh '%s'" % self.org_alias, shell=True)
         print("Deployed Triggers and Duplicate Rules")
-        print("Deploying Flows and Validation Rules")
+        print("Deploying Flows, Process Builders, Workflow Rules and Validation Rules")
         self.sf.deploy_payloads(payloads)
-        print("Deployed Flows and Validation Rules")
+        print("Deployed Flows, Process Builders, Workflow Rules and Validation Rules")
         print("Job completed. Check result in result.json")
 
     def clean_up(self):

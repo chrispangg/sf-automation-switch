@@ -70,6 +70,22 @@ class FlowDefinition(Metadata):
             self.id, self.name, self.active_version_num
         )
 
+class WorkflowRule(Metadata):
+    active: bool
+    type: MetadataType
+    triggerType: str
+    metadata: str
+
+    def __init__(self, id, name, url, active, metadata, type=MetadataType.WORKFLOWRULE):
+        super().__init__(id, name, url)
+        self.active = active
+        self.type = type
+        self.metadata = metadata
+
+    def __str__(self):
+        return "id: {}, name: {}, active: {}".format(
+            self.id, self.name, self.active
+        )
 
 class ValidationRule(Metadata):
     description: str
