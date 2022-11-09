@@ -4,7 +4,8 @@ This script helps with disabling and enabling automation (Triggers, Flows, Proce
 
 ## ****How to Install and run the script****
 - make sure the Salesforce CLI is installed
-- Optional - use a Python Virtual Environment i.e. venv, conda or virtualenv
+- Optional(recommended) - use a Python Virtual Environment i.e. venv, conda or virtualenv
+    - If you are using venv, then locate the venv folder and activate i.e. source venv/bin/activate
 - Make sure the packages are installed in your local machine by running :`pip install -r requirements.txt`
 - Setup `.env` file at the root level. 
     - SFUSERNAME - username for logging into the Salesforce Org
@@ -17,8 +18,8 @@ This script helps with disabling and enabling automation (Triggers, Flows, Proce
         SFUSERNAME=user@email.com.dev
         SFPASSWORD=00000000000
         SECURITY_TOKEN=0000000000000000000000000
-        SFORGALIAS= TestOrg1
-        SALESFORCE_API_VERSION=XX.0
+        SFORGALIAS=TestOrg1
+        SALESFORCE_API_VERSION=55.0
         ```
 ### How to Run:
 The main.py is the main driver for all the logics. In it, the `disable_automation` and `enable_automation` booleans are used to trigger different set of logics. If `disable_automation` is true, it will attempt to disable Triggers, Validation Rules, Duplicate Rules, Flows, Process Builders and Workflow Rules in your org, while saving the original states. Similarly, toggling `enable_automation` to `True` will return the org back to it's original state. Nothing happens if both are set to `False`.

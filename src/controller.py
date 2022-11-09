@@ -71,7 +71,7 @@ class Controller:
         workflow_rule_arr = self.enable_workflow_rules()
         payloads = self.create_payload(flow_definition_arr, validation_rule_arr, workflow_rule_arr, False)
         self.deployment(payloads)
-        # self.clean_up() #uncomment this line to avoid clean up
+        self.clean_up() #uncomment this line to avoid clean up
 
     def disable_trigger(self):
         # get names of active triggers and save them as object and export as json file
