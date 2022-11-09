@@ -1,6 +1,6 @@
 # sf-automation-switch
 
-This script helps with disabling and enabling automation (Triggers, Validation Rules and Flows) in a Salesforce org, especially useful for data migrations.
+This script helps with disabling and enabling automation (Triggers, Duplicate Rules, Validation Rules and Flows) in a Salesforce org, especially useful for data migrations.
 
 ## ****How to Install and run the script****
 - make sure the Salesforce CLI is installed
