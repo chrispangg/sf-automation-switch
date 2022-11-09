@@ -20,6 +20,9 @@ class CalloutController:
         return self.sf.toolingexecute(
             "query/?q=SELECT+Id,NamespacePrefix,Name,Status,TableEnumOrId+From+ApexTrigger+WHERE+NamespacePrefix=+null+Order+by+Name"
         )
+    
+    def fetch_all_active_duplicate_rules(self):
+        return self.sf.query("Select Id, SobjectType, SobjectSubtype, DeveloperName, isActive FROM DuplicateRule where isActive = True")
 
     def fetch_all_flows_json(self):
         return self.sf.toolingexecute(

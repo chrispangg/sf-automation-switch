@@ -1,5 +1,5 @@
 import json
-from model import Trigger, FlowDefinition, ValidationRule
+from model import Trigger, FlowDefinition, ValidationRule, DuplicateRule
 
 class CustomEncoder(json.JSONEncoder):
     def default(self, o):
@@ -21,6 +21,20 @@ class JsonUtil:
             )
             triggers.append(trigger)
         return triggers
+
+    def json_to_duplicate_rule_objects(self, json):
+        duplicate_rules = []
+        for item in json["records"]:
+            objectType = item["SobjectSubtype"] if item["SobjectSubtype"] != "None" else item["SobjectType"]
+            duplicate_rule = DuplicateRule(
+                id=item["Id"],
+                name=item["DeveloperName"],
+                url=item["attributes"]["url"],
+                isActive=item["IsActive"],
+                object=objectType
+            )
+            duplicate_rules.append(duplicate_rule)
+        return duplicate_rules
 
     def json_to_flow_objects(self, json):
         flow_definitions = []

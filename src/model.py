@@ -6,6 +6,8 @@ class MetadataType(Enum):
     TRIGGER = "ApexTrigger"
     FLOW = "Flows"
     VALIDATIONRULE = "ValidationRule"
+    DUPLICATERULE = "DuplicateRule"
+    WORKFLOWRULE = "WorkflowRule"
 
 
 class Metadata:
@@ -38,6 +40,21 @@ class Trigger(Metadata):
             self.id, self.name, self.status, self.object
         )
 
+class DuplicateRule(Metadata):
+    isActive: bool
+    object: str
+    type: MetadataType
+
+    def __init__(self, id, name, url, isActive, object, type=MetadataType.DUPLICATERULE):
+        super().__init__(id, name, url)
+        self.isActive = isActive
+        self.type = type
+        self.object = object
+
+    def __str__(self):
+        return "id: {}, object: {} name: {}, isActive: {}".format(
+            self.id, self.object, self.name, self.isActive
+        )
 
 class FlowDefinition(Metadata):
     active_version_num: int

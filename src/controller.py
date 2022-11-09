@@ -11,8 +11,7 @@ from callout_controller import CalloutController
 from json_util import JsonUtil
 from xml_util import XmlUtil
 from payload_builder import PayloadBuilder
-from model import MetadataType
-from schema import TriggerSchema, FlowDefinitionSchema, ValidationRuleSchema
+from schema import TriggerSchema, FlowDefinitionSchema, ValidationRuleSchema, DuplicateRuleSchema
 from clean_up import CleanUpUtil
 
 class Controller:
@@ -51,17 +50,13 @@ class Controller:
     def setup(self):
         # Setup Shell Org if not exists
         if not os.path.exists("output/sf-automation-switch-org"):
-            subprocess.check_call(
-                "scripts\OrgInit.sh '%s'" % self.org_alias,
-                stderr=subprocess.PIPE,
-                text=True,
-                shell=True,
-            )
+            subprocess.run("scripts/OrgInit.sh %s" % self.org_alias, shell=True)
         else:
             print("org already exist, no org setup required")
 
     def disable_automation(self):
         self.disable_trigger()
+        self.disable_duplicate_rules()
         flow_definition_arr = self.disable_flows()
         validation_rule_arr = self.disable_validation_rules()
         payloads = self.create_payload(flow_definition_arr, validation_rule_arr, True)
@@ -69,11 +64,12 @@ class Controller:
     
     def enable_automation(self):
         self.enable_triggers()
+        self.enable_duplication_rules()
         flow_definition_arr = self.enable_flows()
         validation_rule_arr = self.enable_validation_rules()
         payloads = self.create_payload(flow_definition_arr, validation_rule_arr, False)
         self.deployment(payloads)
-        self.clean_up()
+        self.clean_up() #uncomment this line to avoid clean up
 
     def disable_trigger(self):
         # get names of active triggers and save them as object and export as json file
@@ -86,14 +82,10 @@ class Controller:
         )
 
         # fetch triggers in source files
-        subprocess.check_call(
-            "scripts\FetchMetadata.sh {alias} {md_flag} {metadata}".format(
+        subprocess.run(
+            "scripts/FetchMetadata.sh {alias} {md_flag} {metadata}".format(
                 alias=self.org_alias, md_flag="m", metadata="ApexTrigger"
-            ),
-            stderr=subprocess.PIPE,
-            text=True,
-            shell=True,
-        )
+            ), shell=True)
 
         for trigger in trigger_arr:
             # make a copy of the original trigger-meta.xml files
@@ -115,7 +107,47 @@ class Controller:
                 sys.stdout.write(line)
 
         # generate package.xml
-        XmlUtil.generate_trigger_package(
+        XmlUtil.generate_xml_package(
+            "output/sf-automation-switch-org/manifest/package.xml", self.sfapi
+        )
+
+    def disable_duplicate_rules(self):
+        # get names of active duplication rules and save them as object and export as json file
+        result = self.sf.fetch_all_active_duplicate_rules()
+        json_helper = JsonUtil()
+        duplicate_rule_arr = json_helper.json_to_duplicate_rule_objects(result)
+        duplicate_rule_schema_arr = DuplicateRuleSchema().dump(duplicate_rule_arr, many=True)
+        json_helper.array_to_json(
+            "output/json/OriginalDuplicateRuleState.json", duplicate_rule_schema_arr
+        )
+
+        # fetch duplication rules in source files
+        subprocess.run(
+            "scripts/FetchMetadata.sh {alias} {md_flag} {metadata}".format(
+                alias=self.org_alias, md_flag="m", metadata="DuplicateRule"
+            ), shell=True)
+
+        for duplicate_rule in duplicate_rule_arr:
+            # make a copy of the original dup_rule-meta.xml files
+            original_dup_rule_xml_path = (
+                "output/sf-automation-switch-org/force-app/main/default/duplicateRules/"
+                + duplicate_rule.object + "." + duplicate_rule.name
+                + ".duplicateRule-meta.xml"
+            )
+            copied_dup_rule_xml_path = (
+                "output/copiedDuplicateRules/" + duplicate_rule.object + "." + duplicate_rule.name + ".duplicateRule-meta.xml"
+            )
+            shutil.copyfile(original_dup_rule_xml_path, copied_dup_rule_xml_path)
+
+            # modify the meta.xml status to 'Inactive'
+            for line in fileinput.FileInput(original_dup_rule_xml_path, inplace=1):
+                line = line.replace(
+                    "    <isActive>true</isActive>", "    <isActive>false</isActive>"
+                )
+                sys.stdout.write(line)
+
+        # generate package.xml
+        XmlUtil.generate_xml_package(
             "output/sf-automation-switch-org/manifest/package.xml", self.sfapi
         )
 
@@ -174,7 +206,34 @@ class Controller:
             shutil.move(copied_trigger_xml_path, original_trigger_xml_path)
 
         # generate package.xml
-        XmlUtil.generate_trigger_package(
+        XmlUtil.generate_xml_package(
+            "output/sf-automation-switch-org/manifest/package.xml", self.sfapi
+        )
+
+    def enable_duplication_rules(self):
+        # get names for Duplicate Rules
+        dup_rule_arr = []
+        with open("output/json/OriginalDuplicateRuleState.json", "r") as json_file:
+            dup_rule_json = json.load(json_file)
+            for t in dup_rule_json:
+                result = DuplicateRuleSchema().load(t)
+                dup_rule_arr.append(result)
+
+            for dup_rule in dup_rule_arr:
+
+                # make a copy of the original dup_rule-meta.xml files
+                original_dup_rule_xml_path = (
+                    "output/sf-automation-switch-org/force-app/main/default/duplicateRules/"
+                    + dup_rule.object + "." + dup_rule.name + ".duplicateRule-meta.xml"
+                    )
+                
+                copied_dup_rule_xml_path = (
+                    "output/copiedDuplicateRules/" + dup_rule.object + "." + dup_rule.name + ".duplicateRule-meta.xml"
+                    )
+                shutil.move(copied_dup_rule_xml_path, original_dup_rule_xml_path)
+
+        # generate package.xml
+        XmlUtil.generate_xml_package(
             "output/sf-automation-switch-org/manifest/package.xml", self.sfapi
         )
 
@@ -220,12 +279,10 @@ class Controller:
 
     def deployment(self, payloads):
         print("Deployment starts...")
-        print("Deploying Triggers")
+        print("Deploying Triggers and Duplicate Rules")
         # deploy source to org using the package.xml for triggers
-        subprocess.check_output(
-            "scripts\DeployToOrg.sh '%s'" % self.org_alias, shell=True
-        )
-        print("Deployed Triggers")
+        subprocess.run("scripts/DeployToOrg.sh '%s'" % self.org_alias, shell=True)
+        print("Deployed Triggers and Duplicate Rules")
         print("Deploying Flows and Validation Rules")
         self.sf.deploy_payloads(payloads)
         print("Deployed Flows and Validation Rules")
