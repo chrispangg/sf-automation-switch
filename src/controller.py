@@ -64,8 +64,8 @@ class Controller:
         self.deployment(payloads)
     
     def enable_automation(self):
-        # self.enable_triggers()
-        # self.enable_duplication_rules()
+        self.enable_triggers()
+        self.enable_duplication_rules()
         flow_definition_arr = self.enable_flows()
         validation_rule_arr = self.enable_validation_rules()
         workflow_rule_arr = self.enable_workflow_rules()
