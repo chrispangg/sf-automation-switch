@@ -1,12 +1,14 @@
 from simple_salesforce import Salesforce
 import json
-
+import os
 class CalloutController:
-    def __init__(self, username, password, security_token, org_alias):
+    def __init__(self, username, password, security_token, consumer_key, consumer_secret, org_alias):
         self.sf = Salesforce(
             username=username,
             password=password,
             security_token=security_token,
+            consumer_key=consumer_key,
+            consumer_secret=consumer_secret,
             domain="test",
         )
         self.org_alias = org_alias

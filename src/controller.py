@@ -15,10 +15,10 @@ from schema import TriggerSchema, FlowDefinitionSchema, ValidationRuleSchema, Du
 from clean_up import CleanUpUtil
 
 class Controller:
-    def __init__(self, username, password, security_token, org_alias, sfapi):
+    def __init__(self, username, password, security_token, consumer_key, consumer_secret, org_alias, sfapi):
         self.sfapi = sfapi
         self.org_alias = org_alias
-        self.sf = CalloutController(username, password, security_token, org_alias)
+        self.sf = CalloutController(username, password, security_token, consumer_key, consumer_secret, org_alias)
 
     def initiate(self, disable, enable):
         self.validation(disable, enable)
